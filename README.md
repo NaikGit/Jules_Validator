@@ -54,6 +54,63 @@ java -jar target/validation-service-*.jar
 ```
 (Replace `*` with the actual version of the JAR file generated).
 
+## Deployment
+
+This section outlines how to deploy the Instant Payment Validation Service.
+
+### Local Machine Deployment
+
+1.  **Ensure Prerequisites are Running:**
+    *   A local Kafka instance must be running.
+    *   A local MongoDB instance must be running.
+2.  **Configure Application:**
+    *   Verify that the `src/main/resources/application.properties` file is configured to connect to your local Kafka and MongoDB instances (e.g., `spring.kafka.bootstrap-servers=localhost:9092`, `spring.data.mongodb.uri=mongodb://localhost:27017/payment_validation`).
+3.  **Build the Application:**
+    *   If not already done, build the project using Maven:
+        ```bash
+        mvn clean install
+        ```
+4.  **Run the Application:**
+    *   Execute the JAR file generated in the `target/` directory:
+        ```bash
+        java -jar target/validation-service-*.jar
+        ```
+        (Replace `*` with the actual version of the JAR).
+    *   The service will start, connect to Kafka and MongoDB, and begin processing messages from the input topic.
+
+### Development Environment Deployment
+
+Deploying to a development environment (or any other shared environment like staging, UAT) typically involves more structured processes and may vary depending on the environment's setup.
+
+1.  **Build the JAR:**
+    *   As with local deployment, a JAR file is built using `mvn clean install`.
+2.  **Configuration Management:**
+    *   **Environment-Specific Profiles:** Spring Boot allows for environment-specific properties files (e.g., `application-dev.properties`, `application-staging.properties`). The active profile can be set via environment variables (`SPRING_PROFILES_ACTIVE=dev`) when running the application. These files would contain the Kafka, MongoDB, and other configurations specific to that environment.
+    *   **Externalized Configuration:** In many setups, configurations are externalized using tools like:
+        *   Spring Cloud Config Server
+        *   Kubernetes ConfigMaps and Secrets
+        *   Environment variables directly injected into the application.
+    *   Ensure the application is packaged or configured to pick up the correct settings for the target development environment.
+3.  **Deployment Methods:**
+    *   **Directly on a Server:** The JAR file can be copied to a server and run using `java -jar ...` (often managed by a process manager like `systemd` or `supervisor`).
+    *   **Containerization (Docker):**
+        *   A `Dockerfile` would be created to package the application JAR into a Docker image.
+        *   This image is then pushed to a container registry.
+        *   The application is run as a container (e.g., using Docker Compose for single-host setups or Kubernetes for orchestrated environments).
+        *   Example `Dockerfile` snippet:
+            ```dockerfile
+            FROM openjdk:17-jdk-slim
+            ARG JAR_FILE=target/*.jar
+            COPY ${JAR_FILE} app.jar
+            ENTRYPOINT ["java","-jar","/app.jar"]
+            ```
+    *   **CI/CD Pipelines:** Deployment to development environments is often automated using CI/CD pipelines (e.g., Jenkins, GitLab CI, GitHub Actions) which build, test, and deploy the application.
+
+4.  **Dependencies:**
+    *   Ensure the development environment has network access to the required Kafka brokers and MongoDB instances for that environment.
+
+This service is designed as a standard Spring Boot application, making it compatible with common Java deployment practices.
+
 ## Input / Output
 
 ### Input: Kafka Topic `instant.payment.inbound`
