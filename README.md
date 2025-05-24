@@ -111,6 +111,41 @@ Deploying to a development environment (or any other shared environment like sta
 
 This service is designed as a standard Spring Boot application, making it compatible with common Java deployment practices.
 
+## CI/CD with GitHub Actions
+
+This project is configured with a GitHub Actions workflow to automate the building and deployment of the application to Docker Hub.
+
+### Workflow Overview
+
+*   **Workflow File:** `.github/workflows/deploy.yml`
+*   **Trigger:** The workflow automatically runs on every `push` to the `main` branch.
+*   **Jobs:**
+    1.  **Build and Push to Docker Hub (`build_and_push_to_dockerhub`):**
+        *   Checks out the source code.
+        *   Sets up JDK 17.
+        *   Caches Maven dependencies for faster builds.
+        *   Builds the Spring Boot application using Maven (`mvn clean install -DskipTests`).
+        *   Sets up Docker Buildx.
+        *   Logs into Docker Hub using credentials stored in GitHub Secrets.
+        *   Extracts metadata for Docker image tagging (uses commit SHA and `latest`).
+        *   Builds the Docker image using the provided `Dockerfile`.
+        *   Pushes the built Docker image to Docker Hub. The image will be named `your-dockerhub-username/validation-service` (ensure your Docker Hub username is correctly configured in secrets and the image name in the workflow is as desired).
+
+### Required GitHub Secrets
+
+To enable the workflow to push to Docker Hub, you need to configure the following secrets in your GitHub repository settings (under "Settings" > "Secrets and variables" > "Actions"):
+
+*   `DOCKERHUB_USERNAME`: Your Docker Hub username.
+*   `DOCKERHUB_TOKEN`: Your Docker Hub access token. It is strongly recommended to use an access token with appropriate permissions rather than your Docker Hub password.
+
+### Docker Image Naming
+
+The pushed Docker image will be tagged with:
+*   The commit SHA (e.g., `your-dockerhub-username/validation-service:abcdef1234567890`)
+*   `latest` (for pushes to the `main` branch, e.g., `your-dockerhub-username/validation-service:latest`)
+
+Please replace `your-dockerhub-username/validation-service` in the workflow file (`.github/workflows/deploy.yml` in the `docker/metadata-action` step, under `images`) if you wish to use a different Docker Hub repository name or organization.
+
 ## Input / Output
 
 ### Input: Kafka Topic `instant.payment.inbound`
