@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.3 # Using a recent version
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.3 # Using a recent version
+    container_name: kafka
+    ports:
+      # Exposes Kafka to the host machine for tools or direct connection if needed
+      - "9092:9092" 
+      # Port used by other containers within the Docker network
+      - "29092:29092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      # Listeners for internal Docker network communication
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1 # Confluent specific
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1 # Confluent specific
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1 # Confluent specific
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1 # Confluent specific
+      KAFKA_JMX_PORT: 9999 # Optional JMX port
+      CONFLUENT_SUPPORT_METRICS_ENABLE: 'false' # Disable Confluent telemetry
+
+  mongo:
+    image: mongo:7.0 # Using a recent version of Mongo
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db # Persist MongoDB data
+
+  validation-service:
+    build:
+      context: . # Build from the Dockerfile in the current directory
+      dockerfile: Dockerfile
+    container_name: validation-service
+    depends_on:
+      - kafka
+      - mongo
+    ports:
+      - "8080:8080" # Assuming your app might still expose 8080 (default Spring Boot)
+    environment:
+      # Spring Boot properties to connect to Kafka and MongoDB within Docker Compose network
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092 # Connect to Kafka using its service name and internal port
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/payment_validation # Connect to MongoDB
+      # Add any other environment-specific properties your application might need
+      # For example, if your app uses profiles:
+      # SPRING_PROFILES_ACTIVE: dockercompose
+    # healthcheck: # Optional: add a healthcheck if your app has an actuator health endpoint
+    #   test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+
+volumes:
+  mongo_data: # Defines the named volume for MongoDB persistence

@@ -60,6 +60,8 @@ This section outlines how to deploy the Instant Payment Validation Service.
 
 ### Local Machine Deployment
 
+**Note:** Using Docker Compose (see next section) is the recommended way to run the full application stack (including Kafka and MongoDB) locally. The instructions below are for running the service directly with `java -jar`, which might be preferred in some cases or if Docker is not available.
+
 1.  **Ensure Prerequisites are Running:**
     *   A local Kafka instance must be running.
     *   A local MongoDB instance must be running.
@@ -77,6 +79,86 @@ This section outlines how to deploy the Instant Payment Validation Service.
         ```
         (Replace `*` with the actual version of the JAR).
     *   The service will start, connect to Kafka and MongoDB, and begin processing messages from the input topic.
+
+## Running Locally with Docker Compose
+
+This is the recommended way to run the complete application stack (including Kafka and MongoDB) locally for development and testing.
+
+### Prerequisites
+
+*   Docker Desktop (or Docker Engine and Docker Compose CLI) installed and running.
+
+### Setup & Running
+
+1.  **Clone the Repository:**
+    If you haven't already, clone this repository to your local machine.
+
+2.  **Navigate to Project Root:**
+    Open a terminal and change to the root directory of the project (where `docker-compose.yml` is located).
+
+3.  **Start the Environment:**
+    Run the following command to build the `validation-service` image (if not already built) and start all services (Zookeeper, Kafka, MongoDB, and the application):
+    ```bash
+    docker-compose up -d
+    ```
+    *   The `-d` flag runs the containers in detached mode (in the background).
+    *   The first time you run this, Docker will download the required images for Kafka, Zookeeper, and MongoDB, and build the image for `validation-service`. This might take a few minutes. Subsequent starts will be much faster.
+
+4.  **Verify Services:**
+    *   You can check the status of the running containers:
+        ```bash
+        docker-compose ps
+        ```
+    *   To view logs for all services:
+        ```bash
+        docker-compose logs -f
+        ```
+    *   To view logs for a specific service (e.g., `validation-service`):
+        ```bash
+        docker-compose logs -f validation-service
+        ```
+
+5.  **Application Access:**
+    *   **Kafka:**
+        *   The Kafka broker will be accessible to your application at `kafka:29092` (internally within the Docker network).
+        *   It's also exposed to your host machine at `localhost:9092` if you want to connect with local Kafka tools.
+    *   **MongoDB:**
+        *   MongoDB will be accessible to your application at `mongo:27017`.
+        *   It's also exposed to your host machine at `localhost:27017`.
+    *   **Validation Service:**
+        *   The `validation-service` application itself will be running. If it exposes any HTTP endpoints (e.g., actuator on port 8080), it would be accessible at `http://localhost:8080`.
+        *   The service is configured via environment variables in `docker-compose.yml` to connect to Kafka and MongoDB services within the Docker network.
+
+### Interacting with Kafka Topics (Optional)
+
+You might want to create topics or produce/consume messages manually for testing. You can do this by executing commands inside the Kafka container:
+
+*   **List Topics:**
+    ```bash
+    docker-compose exec kafka kafka-topics --bootstrap-server kafka:29092 --list
+    ```
+*   **Create a Topic (e.g., `instant.payment.inbound`):**
+    ```bash
+    docker-compose exec kafka kafka-topics --bootstrap-server kafka:29092 --create --topic instant.payment.inbound --partitions 1 --replication-factor 1
+    ```
+    *   Similarly for `instant.payment.validated`.
+*   **Console Producer/Consumer:**
+    Refer to Kafka documentation for `kafka-console-producer` and `kafka-console-consumer` commands, which can also be run via `docker-compose exec kafka ...`.
+
+### Shutting Down
+
+*   To stop and remove the containers, network, and volumes (like `mongo_data` if you also want to remove data):
+    ```bash
+    docker-compose down -v
+    ```
+*   If you want to stop the containers but keep the data volumes:
+    ```bash
+    docker-compose down
+    ```
+
+### Configuration Notes
+*   The `validation-service` in `docker-compose.yml` is configured using environment variables (`SPRING_KAFKA_BOOTSTRAP_SERVERS`, `SPRING_DATA_MONGODB_URI`) to connect to the Kafka and MongoDB containers by their service names. These will override any conflicting values in `src/main/resources/application.properties` when running via Docker Compose.
+*   The `Dockerfile` is used to build the `validation-service` image.
 
 ### Development Environment Deployment
 
